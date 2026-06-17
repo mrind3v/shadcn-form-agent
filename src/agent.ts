@@ -32,9 +32,13 @@ Take screenshots after each fill action.
 CRITICAL: Do NOT click the Submit button.
 If elements are not visible, scroll down to find them.`;
 
+/** Outcome of a single agent run, including final text and turn count when available. */
 export type RunResult = {
+  /** Agent's final message or serialized output. */
   finalOutput: string;
+  /** Whether the run completed without hitting max turns or fatal errors. */
   success: boolean;
+  /** Number of agent turns taken, when reported by the SDK. */
   iterations?: number;
 };
 
@@ -135,6 +139,14 @@ function configureOpenAIClient(cfg: Config): void {
   );
 }
 
+/**
+ * Run the browser automation agent against a natural-language goal.
+ * Launches Playwright, wires OpenAI/OpenRouter, and closes the browser when done.
+ *
+ * @param goal - Task description passed to the agent (e.g. form-filling instructions).
+ * @param config - Optional config; defaults to {@link loadConfig} when omitted.
+ * @returns Run result with final output, success flag, and optional iteration count.
+ */
 export async function runAgent(goal: string, config?: Config): Promise<RunResult> {
   const cfg = config ?? loadConfig();
   configureOpenAIClient(cfg);
