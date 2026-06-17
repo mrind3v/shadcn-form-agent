@@ -1,0 +1,24 @@
+{
+  "name": "shadcn-form-agent",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/main.ts",
+    "start": "tsx src/main.ts",
+    "build": "tsc",
+    "test:browser": "node -e \"console.log('Browser tests — Phase 1')\""
+  },
+  "dependencies": {
+    "@openai/agents": "0.0.17",
+    "dotenv": "^17.4.2",
+    "picocolors": "^1.1.1",
+    "playwright": "1.61.0",
+    "tsx": "^4.22.4",
+    "typescript": "^5.9.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29"
+  }
+}
