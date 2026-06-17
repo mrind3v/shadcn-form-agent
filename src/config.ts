@@ -4,8 +4,13 @@ import type { BrowserType, LogLevel } from "./types.js";
 
 loadDotenv();
 
+const DEFAULT_OPENAI_BASE_URL = "https://openrouter.ai/api/v1";
+const DEFAULT_AGENT_MODEL = "openai/gpt-4o-mini:exacto";
+
 const ConfigSchema = z.object({
   openaiApiKey: z.string().min(1),
+  openaiBaseUrl: z.string().url().default(DEFAULT_OPENAI_BASE_URL),
+  agentModel: z.string().min(1).default(DEFAULT_AGENT_MODEL),
   browser: z.enum(["chromium", "firefox", "webkit"]).default("chromium"),
   headless: z.boolean().default(false),
   viewport: z
@@ -52,7 +57,10 @@ function parseLogLevel(value: string | undefined): LogLevel {
 
 export function loadConfig(overrides?: Partial<Config>): Config {
   const raw = {
-    openaiApiKey: process.env.OPENAI_API_KEY ?? "",
+    openaiApiKey:
+      process.env.OPENROUTER_API_KEY ?? process.env.OPENAI_API_KEY ?? "",
+    openaiBaseUrl: process.env.OPENAI_BASE_URL ?? DEFAULT_OPENAI_BASE_URL,
+    agentModel: process.env.OPENROUTER_MODEL ?? DEFAULT_AGENT_MODEL,
     browser: parseBrowser(process.env.BROWSER),
     headless: parseBoolean(process.env.BROWSER_HEADLESS, false),
     viewport: {
