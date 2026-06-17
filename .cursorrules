@@ -1,0 +1,9 @@
+# shadcn-form-agent conventions
+
+- Use picocolors for terminal output — NOT winston or other logging libraries.
+- Screenshots: save to ./screenshots/ (gitignored) AND return base64 in tool responses.
+- Browser default: HEADED mode (headless: false).
+- No form submission logic — coordinate and observe only.
+- Use Playwright direct Node.js API — NOT MCP browser tools.
+- Coordinate-driven workflow: agent navigates by x/y coordinates, not DOM selectors.
+- Pin @openai/agents to 0.0.x — do not upgrade to 0.1+ without explicit approval.
