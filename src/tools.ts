@@ -2,6 +2,12 @@ import { tool } from "@openai/agents";
 import { z } from "zod";
 import type { BrowserController } from "./browser.js";
 
+/**
+ * Create OpenAI Agents SDK tools bound to a {@link BrowserController} instance.
+ *
+ * @param controller - Browser session used by every tool execute handler.
+ * @returns Array of agent tools (open, navigate, screenshot, click, etc.).
+ */
 export function createBrowserTools(controller: BrowserController) {
   const openBrowser = tool({
     name: "open_browser",
@@ -123,4 +129,5 @@ export function createBrowserTools(controller: BrowserController) {
   ];
 }
 
+/** Union of all browser automation tools returned by {@link createBrowserTools}. */
 export type BrowserTool = ReturnType<typeof createBrowserTools>[number];

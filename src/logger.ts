@@ -10,6 +10,7 @@ const LOG_LEVELS: Record<LogLevel, number> = {
 
 let currentLevel: LogLevel = "info";
 
+/** Set the minimum log level emitted to the console. */
 export function setLogLevel(level: LogLevel): void {
   currentLevel = level;
 }
@@ -37,19 +38,25 @@ function log(level: LogLevel, colorFn: (s: string) => string, label: string, mes
   console.log(formatted);
 }
 
+/** Picocolors-backed console logger with level filtering and base64 truncation. */
 export const logger = {
+  /** Log a debug message (gray). */
   debug(message: string): void {
     log("debug", pc.gray, "DEBUG", message);
   },
+  /** Log an info message (blue). */
   info(message: string): void {
     log("info", pc.blue, "INFO", message);
   },
+  /** Log a warning message (yellow). */
   warn(message: string): void {
     log("warn", pc.yellow, "WARN", message);
   },
+  /** Log an error message (red). */
   error(message: string): void {
     log("error", pc.red, "ERROR", message);
   },
+  /** Log a success message (green, info level). */
   success(message: string): void {
     log("info", pc.green, "SUCCESS", message);
   },

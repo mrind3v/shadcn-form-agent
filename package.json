@@ -7,6 +7,8 @@
     "dev": "tsx src/main.ts",
     "start": "tsx src/main.ts",
     "build": "tsc",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
     "test:browser": "tsx src/test-browser.ts"
   },
   "dependencies": {
@@ -20,6 +22,9 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/node": "^22.15.29"
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^22.15.29",
+    "eslint": "^9.39.1",
+    "typescript-eslint": "^8.46.4"
   }
 }

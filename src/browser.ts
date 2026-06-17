@@ -34,20 +34,30 @@ const FILTERED_ROLES = new Set([
   "checkbox",
 ]);
 
+/** Playwright-backed browser session with coordinate-driven interaction and ARIA parsing. */
 export class BrowserController {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
   private page: Page | null = null;
   private readonly config: Config;
 
+  /** @param config - Runtime browser and viewport settings. */
   constructor(config: Config) {
     this.config = config;
   }
 
+  /** Whether a page is currently open. */
   get isOpen(): boolean {
     return this.page !== null;
   }
 
+  /**
+   * Retry an async operation with exponential backoff and failure screenshot.
+   *
+   * @param operation - Label used in log messages.
+   * @param fn - Operation to execute.
+   * @param maxRetries - Override for config maxRetries.
+   */
   async withRetry<T>(
     operation: string,
     fn: () => Promise<T>,
@@ -89,6 +99,11 @@ export class BrowserController {
       : new Error(`${operation} failed after ${attempts} attempts`);
   }
 
+  /**
+   * Launch the configured browser engine and open a new page.
+   *
+   * @param headless - Override config headless flag; defaults to config value.
+   */
   async launch(headless?: boolean): Promise<OpenBrowserResult> {
     if (this.page) {
       logger.warn("Browser already open — reusing existing session");
@@ -127,6 +142,11 @@ export class BrowserController {
     }
   }
 
+  /**
+   * Navigate the active page to a URL and return the resolved location and title.
+   *
+   * @param url - Destination URL.
+   */
   async navigate(url: string): Promise<NavigateResult> {
     const page = this.requirePage();
     return this.withRetry(`navigate to ${url}`, async () => {
@@ -137,6 +157,11 @@ export class BrowserController {
     });
   }
 
+  /**
+   * Capture a PNG screenshot to disk and return its path plus base64 payload.
+   *
+   * @param name - Optional filename stem (sanitized); timestamp used when omitted.
+   */
   async screenshot(name?: string): Promise<ScreenshotResult> {
     const page = this.requirePage();
     const screenshotsDir = path.resolve(this.config.screenshotsDir);
@@ -154,6 +179,14 @@ export class BrowserController {
     return { path: filePath, base64 };
   }
 
+  /**
+   * Click at viewport coordinates after showing a red highlight overlay.
+   *
+   * @param x - Horizontal pixel coordinate.
+   * @param y - Vertical pixel coordinate.
+   * @param width - Optional highlight box width.
+   * @param height - Optional highlight box height.
+   */
   async click(
     x: number,
     y: number,
@@ -173,6 +206,14 @@ export class BrowserController {
     }
   }
 
+  /**
+   * Double-click at viewport coordinates after showing a red highlight overlay.
+   *
+   * @param x - Horizontal pixel coordinate.
+   * @param y - Vertical pixel coordinate.
+   * @param width - Optional highlight box width.
+   * @param height - Optional highlight box height.
+   */
   async doubleClick(
     x: number,
     y: number,
@@ -192,6 +233,11 @@ export class BrowserController {
     }
   }
 
+  /**
+   * Type text into the focused input/textarea or fall back to keyboard.type.
+   *
+   * @param text - Characters to enter.
+   */
   async fill(text: string): Promise<FillResult> {
     const page = this.requirePage();
     const filledViaActiveElement = await page.evaluate((value) => {
@@ -214,6 +260,12 @@ export class BrowserController {
     return { text };
   }
 
+  /**
+   * Scroll the page vertically by a pixel amount.
+   *
+   * @param direction - `"up"` or `"down"`.
+   * @param amount - Pixels to scroll; defaults to 500.
+   */
   async scroll(
     direction: ScrollDirection,
     amount = 500,
@@ -225,6 +277,12 @@ export class BrowserController {
     return { direction, amount };
   }
 
+  /**
+   * Find an interactive element by accessible name, scrolling if needed.
+   *
+   * @param description - Label to match (exact or partial).
+   * @returns Element metadata and center coordinates, or null if not found.
+   */
   async findElement(description: string): Promise<FindElementResult | null> {
     const page = this.requirePage();
     let match = await this.matchElementInSnapshot(page, description);
@@ -249,6 +307,7 @@ export class BrowserController {
     return null;
   }
 
+  /** Return a filtered accessibility snapshot of interactive page elements. */
   async getPageState(): Promise<PageState> {
     const page = this.requirePage();
     const snapshot = await page.ariaSnapshot({ boxes: true });
@@ -268,6 +327,7 @@ export class BrowserController {
     };
   }
 
+  /** Close the browser context and release Playwright resources. */
   async close(): Promise<void> {
     if (this.context) {
       await this.context.close();
@@ -411,6 +471,11 @@ export class BrowserController {
   }
 }
 
+/**
+ * Parse Playwright ARIA snapshot lines into structured elements with optional bounding boxes.
+ *
+ * @param snapshot - Raw multiline string from `page.ariaSnapshot()`.
+ */
 export function parseAriaSnapshot(snapshot: string): ParsedAriaElement[] {
   const elements: ParsedAriaElement[] = [];
   const lines = snapshot.split("\n");

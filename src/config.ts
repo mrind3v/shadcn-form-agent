@@ -26,6 +26,7 @@ const ConfigSchema = z.object({
   screenshotsDir: z.string().default("./screenshots"),
 });
 
+/** Validated runtime configuration for the agent, browser, and logging. */
 export type Config = z.infer<typeof ConfigSchema>;
 
 function parseBoolean(value: string | undefined, fallback: boolean): boolean {
@@ -55,6 +56,12 @@ function parseLogLevel(value: string | undefined): LogLevel {
   return "info";
 }
 
+/**
+ * Load and validate configuration from environment variables and optional overrides.
+ *
+ * @param overrides - Partial config values merged on top of env-derived defaults.
+ * @returns Parsed {@link Config} object.
+ */
 export function loadConfig(overrides?: Partial<Config>): Config {
   const raw = {
     openaiApiKey:
