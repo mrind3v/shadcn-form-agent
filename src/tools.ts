@@ -91,7 +91,7 @@ export function createBrowserTools(controller: BrowserController) {
   const findElement = tool({
     name: "find_element",
     description:
-      "Find an element on the page by description (matches role or accessible name). Returns coordinates or null.",
+      "Find an element on the page by accessible name (exact or partial label match). Returns coordinates or null.",
     parameters: z.object({
       description: z.string(),
     }),

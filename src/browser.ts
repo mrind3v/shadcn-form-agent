@@ -154,9 +154,14 @@ export class BrowserController {
     return { path: filePath, base64 };
   }
 
-  async click(x: number, y: number): Promise<ClickResult> {
+  async click(
+    x: number,
+    y: number,
+    width?: number,
+    height?: number,
+  ): Promise<ClickResult> {
     const page = this.requirePage();
-    await this.showHighlight(page, x, y);
+    await this.showHighlight(page, x, y, width, height);
     try {
       await page.mouse.click(x, y);
       logger.debug(`Clicked at (${x}, ${y})`);
@@ -168,9 +173,14 @@ export class BrowserController {
     }
   }
 
-  async doubleClick(x: number, y: number): Promise<ClickResult> {
+  async doubleClick(
+    x: number,
+    y: number,
+    width?: number,
+    height?: number,
+  ): Promise<ClickResult> {
     const page = this.requirePage();
-    await this.showHighlight(page, x, y);
+    await this.showHighlight(page, x, y, width, height);
     try {
       await page.mouse.dblclick(x, y);
       logger.debug(`Double-clicked at (${x}, ${y})`);
@@ -184,7 +194,22 @@ export class BrowserController {
 
   async fill(text: string): Promise<FillResult> {
     const page = this.requirePage();
-    await page.keyboard.type(text);
+    const filledViaActiveElement = await page.evaluate((value) => {
+      const el = document.activeElement;
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+        el.focus();
+        el.value = value;
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+        return true;
+      }
+      return false;
+    }, text);
+
+    if (!filledViaActiveElement) {
+      await page.keyboard.type(text);
+    }
+
     logger.debug(`Typed ${text.length} character(s)`);
     return { text };
   }
@@ -207,13 +232,17 @@ export class BrowserController {
       return this.toFindElementResult(description, match);
     }
 
-    logger.debug(`Element "${description}" not found — scrolling down 500px and retrying`);
-    await page.mouse.wheel(0, 500);
-    await page.waitForTimeout(300);
+    for (let scrollAttempt = 1; scrollAttempt <= 2; scrollAttempt++) {
+      logger.debug(
+        `Element "${description}" not found — scrolling down 500px (attempt ${scrollAttempt}/2)`,
+      );
+      await page.mouse.wheel(0, 500);
+      await page.waitForTimeout(300);
 
-    match = await this.matchElementInSnapshot(page, description);
-    if (match) {
-      return this.toFindElementResult(description, match);
+      match = await this.matchElementInSnapshot(page, description);
+      if (match) {
+        return this.toFindElementResult(description, match);
+      }
     }
 
     logger.warn(`Element not found: "${description}"`);
@@ -274,14 +303,42 @@ export class BrowserController {
     const elements = parseAriaSnapshot(snapshot);
     const query = description.toLowerCase().trim();
 
-    return (
-      elements.find(
-        (el) =>
-          el.name.toLowerCase().includes(query) ||
-          el.role.toLowerCase().includes(query) ||
-          `${el.role} ${el.name}`.toLowerCase().includes(query),
-      ) ?? null
+    const exactMatch = elements.find(
+      (el) => el.name.toLowerCase().trim() === query,
     );
+    if (exactMatch) {
+      return exactMatch;
+    }
+
+    const partialMatch = elements.find((el) =>
+      el.name.toLowerCase().includes(query),
+    );
+    if (partialMatch) {
+      return partialMatch;
+    }
+
+    if (query.includes("title")) {
+      const titleMatch = elements.find(
+        (el) =>
+          el.role === "textbox" && el.name.toLowerCase().includes("title"),
+      );
+      if (titleMatch) {
+        return titleMatch;
+      }
+    }
+
+    if (query.includes("description")) {
+      const descriptionMatch = elements.find(
+        (el) =>
+          (el.role === "textbox" || el.role === "textarea") &&
+          el.name.toLowerCase().includes("description"),
+      );
+      if (descriptionMatch) {
+        return descriptionMatch;
+      }
+    }
+
+    return null;
   }
 
   private toFindElementResult(
@@ -305,29 +362,46 @@ export class BrowserController {
     };
   }
 
-  private async showHighlight(page: Page, x: number, y: number): Promise<void> {
+  private async showHighlight(
+    page: Page,
+    x: number,
+    y: number,
+    width?: number,
+    height?: number,
+  ): Promise<void> {
     await page.evaluate(
-      ({ px, py }) => {
+      ({ px, py, w, h }) => {
         const existing = document.getElementById("__agent-highlight__");
         existing?.remove();
 
         const div = document.createElement("div");
         div.id = "__agent-highlight__";
         div.style.position = "fixed";
-        div.style.left = `${px - 12}px`;
-        div.style.top = `${py - 12}px`;
-        div.style.width = "24px";
-        div.style.height = "24px";
-        div.style.border = "3px solid red";
-        div.style.borderRadius = "50%";
-        div.style.backgroundColor = "rgba(255, 0, 0, 0.25)";
+        div.style.border = "2px solid red";
         div.style.pointerEvents = "none";
         div.style.zIndex = "2147483647";
+        div.style.boxSizing = "border-box";
+
+        if (w && h && w > 0 && h > 0) {
+          div.style.left = `${px - w / 2}px`;
+          div.style.top = `${py - h / 2}px`;
+          div.style.width = `${w}px`;
+          div.style.height = `${h}px`;
+          div.style.backgroundColor = "rgba(255, 0, 0, 0.1)";
+        } else {
+          div.style.left = `${px - 12}px`;
+          div.style.top = `${py - 12}px`;
+          div.style.width = "24px";
+          div.style.height = "24px";
+          div.style.borderRadius = "50%";
+          div.style.backgroundColor = "rgba(255, 0, 0, 0.25)";
+        }
+
         document.body.appendChild(div);
       },
-      { px: x, py: y },
+      { px: x, py: y, w: width ?? 0, h: height ?? 0 },
     );
-    await page.waitForTimeout(150);
+    await page.waitForTimeout(1000);
   }
 
   private async removeHighlight(page: Page): Promise<void> {
