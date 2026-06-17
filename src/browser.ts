@@ -287,7 +287,11 @@ export class BrowserController {
     const page = this.requirePage();
     let match = await this.matchElementInSnapshot(page, description);
     if (match) {
-      return this.toFindElementResult(description, match);
+      match = await this.resolveElementMatch(page, description, match);
+      if (match) {
+        return this.toFindElementResult(description, match);
+      }
+      return null;
     }
 
     for (let scrollAttempt = 1; scrollAttempt <= 2; scrollAttempt++) {
@@ -299,7 +303,11 @@ export class BrowserController {
 
       match = await this.matchElementInSnapshot(page, description);
       if (match) {
-        return this.toFindElementResult(description, match);
+        match = await this.resolveElementMatch(page, description, match);
+        if (match) {
+          return this.toFindElementResult(description, match);
+        }
+        return null;
       }
     }
 
@@ -353,6 +361,61 @@ export class BrowserController {
       headless,
       viewport: { ...this.config.viewport },
     };
+  }
+
+  /** Whether a bounding box extends outside the configured viewport. */
+  private isBoxOffscreen(box: ElementCoords): boolean {
+    const { height } = this.config.viewport;
+    return box.y < 0 || box.y + box.height > height;
+  }
+
+  /**
+   * Scroll the page so the element box is vertically centered in the viewport.
+   *
+   * @param page - Active Playwright page.
+   * @param box - Element bounding box from an ARIA snapshot.
+   */
+  private async scrollBoxIntoView(
+    page: Page,
+    box: ElementCoords,
+  ): Promise<void> {
+    const { height } = this.config.viewport;
+    const scrollDelta = Math.round(box.y - (height - box.height) / 2);
+    if (scrollDelta !== 0) {
+      await page.evaluate((delta) => window.scrollBy(0, delta), scrollDelta);
+    }
+    await page.waitForTimeout(300);
+  }
+
+  /**
+   * Ensure a matched element is on-screen; scroll and re-snapshot when needed.
+   *
+   * @param page - Active Playwright page.
+   * @param description - Label used to re-locate the element after scrolling.
+   * @param match - Initial ARIA snapshot match.
+   * @returns Updated match with viewport coordinates, or null if lost after scroll.
+   */
+  private async resolveElementMatch(
+    page: Page,
+    description: string,
+    match: ParsedAriaElement,
+  ): Promise<ParsedAriaElement | null> {
+    if (!match.box || !this.isBoxOffscreen(match.box)) {
+      return match;
+    }
+
+    logger.debug(
+      `Element "${description}" is offscreen (box y=${match.box.y}) — scrolling into view`,
+    );
+    await this.scrollBoxIntoView(page, match.box);
+    const refreshed = await this.matchElementInSnapshot(page, description);
+    if (!refreshed) {
+      logger.debug(
+        `Element "${description}" not found after scroll into view`,
+      );
+      return null;
+    }
+    return refreshed;
   }
 
   private async matchElementInSnapshot(

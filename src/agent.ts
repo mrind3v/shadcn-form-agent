@@ -15,6 +15,8 @@ import { createBrowserTools } from "./tools.js";
 
 type AgentsOpenAIClient = Parameters<typeof setDefaultOpenAIClient>[0];
 
+const TARGET_URL = "https://ui.shadcn.com/docs/forms/react-hook-form";
+
 const SYSTEM_PROMPT = `You are a browser automation agent.
 You control a VISIBLE browser window.
 Workflow: (1) get_page_state to understand the page, (2) find_element to locate fields, (3) click_on_screen to focus, (4) send_keys to type.
@@ -23,7 +25,11 @@ If an element is not found, scroll down and retry.
 CRITICAL: Do NOT submit forms. Only fill fields.
 Use the accessibility tree (get_page_state) to identify elements by their labels.
 
-Navigate to shadcn react-hook-form docs.
+Target URL: ${TARGET_URL}
+Navigate there once with navigate_to_url, then STAY on that page for the entire task.
+CRITICAL: Do NOT navigate away from the target URL. Do not use navigate_to_url again unless the browser is on a completely wrong page.
+Do not visit links from get_page_state (docs, examples, react-hook-form.com, or other pages). Ignore link elements — use scroll, find_element, click_on_screen, and send_keys only.
+
 The form is a 'Bug Report' demo — look for 'Bug Title' and 'Description' fields.
 Use get_page_state first to see the page structure.
 Use find_element to locate each field by its accessible name.
@@ -37,8 +43,9 @@ After filling both Bug Title and Description, take a final screenshot and confir
 Do not end your run with phrases like "let me", "I will", or "next I will" — only end after the work is done.`;
 
 const MAX_CONTINUATION_ATTEMPTS = 2;
-const CONTINUATION_PROMPT =
-  "Continue the task from where you left off. Use tools now to click and type into Bug Title and Description. Do not respond with text only.";
+const CONTINUATION_PROMPT = `Continue filling the Bug Report form on ${TARGET_URL}.
+You should already be on the target page — do NOT navigate away and do NOT use navigate_to_url.
+Use find_element, click_on_screen, send_keys, and scroll only. Do not respond with text only.`;
 
 function isIncompleteFinalOutput(output: string, goal: string): boolean {
   const lower = output.toLowerCase();
@@ -86,11 +93,24 @@ function extractIterations(result: {
   rawResponses: unknown[];
   state?: { toJSON(): { currentTurn?: number } };
 }): number | undefined {
+  const turn = result.state?.toJSON().currentTurn;
+  if (turn !== undefined && turn > 0) {
+    return turn;
+  }
   if (result.rawResponses.length > 0) {
     return result.rawResponses.length;
   }
-  const turn = result.state?.toJSON().currentTurn;
-  return turn !== undefined && turn > 0 ? turn : undefined;
+  return undefined;
+}
+
+function formatToolOutput(value: unknown): string {
+  if (value === undefined || value === null) {
+    return "";
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  return JSON.stringify(value);
 }
 
 function logRunItems(items: RunItem[]): void {
@@ -110,10 +130,11 @@ function logRunItems(items: RunItem[]): void {
         break;
       }
       case "tool_call_output_item": {
-        const output =
+        const rawOutput =
           item.rawItem && typeof item.rawItem === "object" && "output" in item.rawItem
-            ? String(item.rawItem.output ?? "")
-            : JSON.stringify(item.rawItem);
+            ? item.rawItem.output
+            : item.rawItem;
+        const output = formatToolOutput(rawOutput);
         logger.info(`Tool result: ${output.slice(0, 500)}`);
         break;
       }
@@ -209,7 +230,7 @@ export async function runAgent(goal: string, config?: Config): Promise<RunResult
         result = await run(agent, input, { maxTurns: turnsRemaining });
       } catch (error) {
         if (error instanceof MaxTurnsExceededError) {
-          logMaxTurnsPartialProgress(error, cfg.maxAgentIterations);
+          logMaxTurnsPartialProgress(error, turnsRemaining);
           const segmentTurns = error.state?.toJSON().currentTurn;
           if (segmentTurns !== undefined) {
             totalIterations += segmentTurns;

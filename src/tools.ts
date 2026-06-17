@@ -22,7 +22,8 @@ export function createBrowserTools(controller: BrowserController) {
 
   const navigateToUrl = tool({
     name: "navigate_to_url",
-    description: "Navigate the browser to a URL.",
+    description:
+      "Navigate the browser to a URL. Use ONLY ONCE at the start to reach the goal URL. Do not use to follow links, visit docs, or browse other pages while filling the form.",
     parameters: z.object({
       url: z.string().url(),
     }),
