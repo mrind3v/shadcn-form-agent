@@ -7,7 +7,7 @@
     "dev": "tsx src/main.ts",
     "start": "tsx src/main.ts",
     "build": "tsc",
-    "test:browser": "node -e \"console.log('Browser tests — Phase 1')\""
+    "test:browser": "tsx src/test-browser.ts"
   },
   "dependencies": {
     "@openai/agents": "0.0.17",
