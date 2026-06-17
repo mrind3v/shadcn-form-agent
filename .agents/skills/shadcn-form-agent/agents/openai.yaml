@@ -1,0 +1,6 @@
+interface:
+  display_name: "Shadcn Form Agent"
+  short_description: "Repo-specific patterns and workflows for shadcn-form-agent"
+  default_prompt: "Use the shadcn-form-agent repo skill to follow existing architecture, testing, and workflow conventions."
+policy:
+  allow_implicit_invocation: true
