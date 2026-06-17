@@ -2,13 +2,18 @@ import {
   Agent,
   MaxTurnsExceededError,
   run,
-  setDefaultOpenAIKey,
+  setDefaultOpenAIClient,
+  setOpenAIAPI,
+  setTracingDisabled,
   type RunItem,
 } from "@openai/agents";
+import OpenAI from "openai";
 import { BrowserController } from "./browser.js";
 import { loadConfig, type Config } from "./config.js";
 import { logger } from "./logger.js";
 import { createBrowserTools } from "./tools.js";
+
+type AgentsOpenAIClient = Parameters<typeof setDefaultOpenAIClient>[0];
 
 const SYSTEM_PROMPT = `You are a browser automation agent.
 You control a VISIBLE browser window.
@@ -103,9 +108,27 @@ function logMaxTurnsPartialProgress(
   }
 }
 
+function configureOpenAIClient(cfg: Config): void {
+  setOpenAIAPI("chat_completions");
+  setTracingDisabled(true);
+
+  setDefaultOpenAIClient(
+    new OpenAI({
+      apiKey: cfg.openaiApiKey,
+      baseURL: cfg.openaiBaseUrl,
+      defaultHeaders: {
+        "HTTP-Referer":
+          process.env.OPENROUTER_SITE_URL ?? "http://localhost",
+        "X-OpenRouter-Title":
+          process.env.OPENROUTER_SITE_TITLE ?? "shadcn-form-agent",
+      },
+    }) as unknown as AgentsOpenAIClient,
+  );
+}
+
 export async function runAgent(goal: string, config?: Config): Promise<RunResult> {
   const cfg = config ?? loadConfig();
-  setDefaultOpenAIKey(cfg.openaiApiKey);
+  configureOpenAIClient(cfg);
   logger.info(`Agent goal: ${goal}`);
 
   const controller = new BrowserController(cfg);
@@ -113,7 +136,7 @@ export async function runAgent(goal: string, config?: Config): Promise<RunResult
   const agent = new Agent({
     name: "BrowserAutomationAgent",
     instructions: SYSTEM_PROMPT,
-    model: "gpt-4o-mini",
+    model: cfg.agentModel,
     tools,
   });
 
