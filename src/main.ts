@@ -7,10 +7,9 @@ async function main(): Promise<void> {
   setLogLevel(config.logLevel);
   logger.info("Starting browser automation agent...");
 
-  // Phase 2 verification goal — NOT shadcn yet (Phase 3)
   const goal =
     process.argv.slice(2).join(" ") ||
-    "Navigate to example.com and take a screenshot";
+    "Navigate to https://ui.shadcn.com/docs/forms/react-hook-form and fill in the Bug Title and Description fields. Do NOT submit the form.";
 
   const result = await runAgent(goal, config);
   if (result.success) {

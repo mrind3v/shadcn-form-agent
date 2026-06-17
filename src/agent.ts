@@ -21,7 +21,16 @@ Workflow: (1) get_page_state to understand the page, (2) find_element to locate 
 ALWAYS take a screenshot before and after important actions.
 If an element is not found, scroll down and retry.
 CRITICAL: Do NOT submit forms. Only fill fields.
-Use the accessibility tree (get_page_state) to identify elements by their labels.`;
+Use the accessibility tree (get_page_state) to identify elements by their labels.
+
+Navigate to shadcn react-hook-form docs.
+The form is a 'Bug Report' demo — look for 'Bug Title' and 'Description' fields.
+Use get_page_state first to see the page structure.
+Use find_element to locate each field by its accessible name.
+Use click_on_screen to focus, then send_keys to type.
+Take screenshots after each fill action.
+CRITICAL: Do NOT click the Submit button.
+If elements are not visible, scroll down to find them.`;
 
 export type RunResult = {
   finalOutput: string;
